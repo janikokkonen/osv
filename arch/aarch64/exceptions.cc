@@ -8,7 +8,6 @@
 #include <osv/debug.hh>
 #include <osv/prio.hh>
 #include <osv/sched.hh>
-
 #include "exceptions.hh"
 #include "gic.hh"
 
