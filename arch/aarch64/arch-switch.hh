@@ -24,12 +24,12 @@ namespace sched {
 
 void thread::switch_to()
 {
-    abort();
+    abort("switch_to() reached.\n");
 }
 
 void thread::switch_to_first()
 {
-    abort();
+    abort("switch_to_first() reached.\n");
 }
 
 void thread::init_stack()
@@ -66,7 +66,7 @@ void thread::free_tcb()
 
 void thread_main_c(thread* t)
 {
-    abort();
+    abort("thread_main_c reached.\n");
 }
 
 }

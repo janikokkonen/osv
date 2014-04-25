@@ -22,7 +22,6 @@
 #include "smp.hh"
 
 #ifndef AARCH64_PORT_STUB
-#include "exceptions.hh"
 #include "drivers/pci.hh"
 #include "ioapic.hh"
 #include "drivers/acpi.hh"
@@ -36,9 +35,11 @@
 #include "drivers/ide.hh"
 #include "drivers/vmw-pvscsi.hh"
 #include "drivers/vmxnet3.hh"
-#include "drivers/zfs.hh"
 #include "drivers/pvpanic.hh"
 #endif /* !AARCH64_PORT_STUB */
+
+#include "exceptions.hh"
+#include "drivers/zfs.hh"
 
 #include <osv/sched.hh>
 #include <osv/barrier.hh>
@@ -119,20 +120,14 @@ int main(int ac, char **av)
         printf("argv[%d] = %s\n", i, av[i]);
     }
 
-    printf("OSv AArch64: main reached, halting.\n");
-    while (1) {
-        asm ("wfi;");
-    }
+    printf("OSv AArch64: main reached.\n");
 #endif /* AARCH64_PORT_STUB */
 
-#ifndef AARCH64_PORT_STUB
     smp_initial_find_current_cpu()->init_on_cpu();
     void main_cont(int ac, char** av);
     sched::init([=] { main_cont(ac, av); });
-#endif /* !AARCH64_PORT_STUB */
 }
 
-#ifndef AARCH64_PORT_STUB
 static bool opt_leak = false;
 static bool opt_noshutdown = false;
 static bool opt_log_backtrace = false;
@@ -318,6 +313,7 @@ void* do_main_thread(void *_commands)
     auto commands =
          static_cast<std::vector<std::vector<std::string> > *>(_commands);
 
+    /*
     // initialize panic drivers
     panic::pvpanic::probe_and_setup();
     boot_time.event("pvpanic done");
@@ -343,6 +339,7 @@ void* do_main_thread(void *_commands)
 
     randomdev::randomdev_init();
     boot_time.event("drivers loaded");
+    */
 
     if (opt_mount) {
         mount_zfs_rootfs();
@@ -411,12 +408,18 @@ void main_cont(int ac, char** av)
     std::tie(ac, av) = parse_options(ac, av);
     // multiple programs can be run -> separate their arguments
     cmds = prepare_commands(ac, av);
+
+    /*
     ioapic::init();
+    */
     smp_launch();
     boot_time.event("SMP launched");
+    /*
     memory::enable_debug_allocator();
     acpi::init();
     console::console_init(opt_vga);
+    */
+
     // Print only after console is initialized.
     printf("OSv " OSV_VERSION "\n");
 
@@ -435,8 +438,7 @@ void main_cont(int ac, char** av)
     net_init();
     boot_time.event("Network initialized");
 
-    processor::sti();
-
+    arch::irq_enable();
 
     pthread_t pthread;
     // run the payload in a pthread, so pthread_self() etc. work
@@ -458,8 +460,6 @@ void main_cont(int ac, char** av)
         osv::shutdown();
     }
 }
-
-#endif /* !AARCH64_PORT_STUB */
 
 int __argc;
 char** __argv;
