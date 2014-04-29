@@ -22,6 +22,71 @@
         Lower Exception level, from AArch32              0x600     0x680     0x700     0x780
  */
 
+
+
+/* REMOVE/RENAME */
+.equ ESR_EL1_EC_SHIFT, 26
+.equ ESR_EL1_EC_DABT_EL1, 0x25
+
+enable_irq:
+        msr daifclr, #2
+        isb
+        ret
+
+disable_irq:
+        msr daifset, #2
+        isb
+        ret
+
+
+.macro sv_state
+        sub sp, sp, #48        //make space for error_code, PSTATE, PC, SP
+	push_pair x28, x29
+	push_pair x26, x27
+	push_pair x24, x25
+	push_pair x22, x23
+	push_pair x20, x21
+        push_pair x18, x19
+	push_pair x16, x17
+	push_pair x14, x15
+	push_pair x12, x13
+	push_pair x10, x11
+	push_pair x8, x9
+	push_pair x6, x7
+	push_pair x4, x5
+	push_pair x2, x3
+	push_pair x0, x1
+        add     x1, sp, #288    //beginning of the stack
+        mrs	x2, elr_el1
+	mrs	x3, spsr_el1
+        stp     x30, x1, [sp, #240]  //lr, sp
+        stp     x2, x3, [sp, #256]   //elr_el1, spsr_el1
+.endm
+
+.macro ld_state
+        ldp	x21, x22, [sp, #256]
+        pop_pair x0, x1
+        pop_pair x2, x3
+        pop_pair x4, x5
+        pop_pair x6, x7
+        pop_pair x8, x9
+        add x21, x21, #0x4                      //remove
+	msr	elr_el1, x21			// set up the return data
+	msr	spsr_el1, x22
+        pop_pair x10, x11
+	pop_pair x12, x13
+	pop_pair x14, x15
+	pop_pair x16, x17
+	pop_pair x18, x19
+	pop_pair x20, x21
+	pop_pair x22, x23
+	pop_pair x24, x25
+	pop_pair x26, x27
+	pop_pair x28, x29
+        ldr	x30, [sp], #48
+        eret
+.endm
+
 .macro vector_entry label idx
 /* every entry is at 2^7 bits distance */
 .align 7
@@ -120,9 +185,14 @@ entry_invalid:
 1:      wfi
         b       1b
 
+.align 7
 .global entry_sync
 entry_sync:
-        b       entry_invalid
+        sv_state
+        mrs     x1, esr_el1			// read the syndrome register
+        lsr	x24, x1, #ESR_EL1_EC_SHIFT	// exception class
+        cmp	x24, #ESR_EL1_EC_DABT_EL1	// data abort in EL1
+        b.eq	el1_da
 
 .global entry_irq
 entry_irq:
@@ -137,6 +207,27 @@ entry_fiq:
 .global entry_serror
 entry_serror:
         b       entry_invalid
+el1_da:
+         mrs x1, far_el1        //read the fault address regisetr
+         bl enable_irq             //check this
+         mov	x0, sp		 //save exception_frame to x1
+	 bl page_fault
+         bl disable_irq           //check this
+         ld_state
+/*
+.macro exception_error_entry name, handler
+	exception_entry \name, \handler, 1
+.endm
+
+.macro exception_noerror_entry name, handler
+	exception_entry \name, \handler, 0
+.endm
+
+.cfi_sections .eh_frame,  .debug_frame
+
+.text
+
+*/
 
 .global thread_main
 thread_main:
