@@ -1,5 +1,6 @@
 #include <osv/mmu.hh>
 #include <osv/debug.h>
+#include <osv/prio.hh>
 
 namespace mmu {
 
@@ -11,7 +12,7 @@ void flush_tlb_local() {
     asm volatile("dsb sy; tlbi vmalle1; dsb sy; isb;");
 }
 
-static pt_element page_table_root[2];
+static pt_element page_table_root[2] __attribute__((init_priority((int)init_prio::pt_root)));
 
 void switch_to_runtime_page_tables()
 {
