@@ -59,8 +59,10 @@ disable_irq:
         add     x1, sp, #288    //beginning of the stack
         mrs	x2, elr_el1
 	mrs	x3, spsr_el1
+        mrs     x4, esr_el1
         stp     x30, x1, [sp, #240]  //lr, sp
         stp     x2, x3, [sp, #256]   //elr_el1, spsr_el1
+        stp     x4, xzr, [sp, #272]  //esr_el1   
 .endm
 
 .macro ld_state
@@ -69,8 +71,7 @@ disable_irq:
         pop_pair x2, x3
         pop_pair x4, x5
         pop_pair x6, x7
-        pop_pair x8, x9
-        add x21, x21, #0x4                      //remove
+        pop_pair x8, x9    
 	msr	elr_el1, x21			// set up the return data
 	msr	spsr_el1, x22
         pop_pair x10, x11
@@ -207,12 +208,16 @@ entry_fiq:
 .global entry_serror
 entry_serror:
         b       entry_invalid
+
 el1_da:
-         mrs x1, far_el1        //read the fault address regisetr
-         bl enable_irq             //check this
-         mov	x0, sp		 //save exception_frame to x1
+         mrs x1, far_el1         //read the fault address register
+         //bl enable_irq           
+         mov	x0, sp		 //save exception_frame to x0
 	 bl page_fault
-         bl disable_irq           //check this
+         //bl disable_irq          
+//         mov x1, sp
+//stop:
+//         b stop
          ld_state
 /*
 .macro exception_error_entry name, handler

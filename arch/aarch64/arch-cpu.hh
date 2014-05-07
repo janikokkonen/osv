@@ -11,6 +11,7 @@
 #define ARCH_CPU_HH
 
 #include "processor.hh"
+#include "exceptions.hh"
 #include "osv/pagealloc.hh"
 #include <osv/debug.h>
 #include "exceptions.hh"
@@ -26,6 +27,8 @@ struct arch_cpu {
 };
 
 struct arch_thread {
+    char interrupt_stack[4096] __attribute__((aligned(16)));
+    char exception_stack[4096] __attribute__((aligned(16)));
 };
 
 struct arch_fpu {
@@ -42,6 +45,13 @@ inline void arch_cpu::init_on_cpu()
 
     interrupt_table.enable_irqs();
 }
+
+/*
+struct exception_guard {
+    exception_guard();
+    ~exception_guard();
+};
+*/
 
 }
 

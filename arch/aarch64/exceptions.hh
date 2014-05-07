@@ -62,7 +62,7 @@ protected:
 extern class interrupt_table interrupt_table;
 
 extern "C" {
-    void page_fault(exception_frame* ef);
+    void page_fault(exception_frame* ef, u64 addr);
 }
 
 bool fixup_fault(exception_frame*);

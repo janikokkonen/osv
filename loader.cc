@@ -56,8 +56,11 @@
 #include <osv/shutdown.hh>
 #include <osv/commands.hh>
 #include <osv/boot.hh>
+#include <osv/mmu.hh>
 
 using namespace osv;
+using namespace mmu;
+extern pt_element page_table_root[2];
 
 asm(".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1 \n"
     ".byte 1 \n"
@@ -99,16 +102,34 @@ extern "C" {
 
 void premain()
 {
+    static long init_counter = 0;
+    //u64 pt_addr1, pt_addr2;
     arch_init_premain();
 
     auto inittab = elf::get_init(elf_header);
     setup_tls(inittab);
     boot_time.event("TLS initialization");
     for (auto init = inittab.start; init < inittab.start + inittab.count; ++init) {
+        //pt_addr1 = (u64)(get_page_table_root_elem(0));
+        //pt_addr2 = (u64)(get_page_table_root_elem(1));
+
+        //debug_early_u64("page_table_root_1 :", pt_addr1);
+        //debug_early_u64("page_table_root_2 :", pt_addr2);
+        //debug_early_u64("init_func addr :", (u64)(*init));
         (*init)();
+        /*if ( ((pt_addr1 == 0x0LL) && (init_counter > 2)) ) {
+            debug_early_u64("init func counter :", (u64)init_counter);
+            debug_early_u64("inittab.start :", (u64)(inittab.start + inittab.count));
+            debug_early_u64("init counter :", (u64)init);
+
+            asm("wfi");
+        }*/
+        init_counter++;
     }
     boot_time.event(".init functions");
 }
+
+unsigned long tmp;
 
 int main(int ac, char **av)
 {
@@ -120,8 +141,17 @@ int main(int ac, char **av)
     }
 
     printf("OSv AArch64: main reached.\n");
-#endif /* AARCH64_PORT_STUB */
+    //void *adr = mmu::map_anon((void*)0x80000000, 0x1000, (mmu::mmap_populate | mmu::mmap_small | mmu::mmap_uninitialized), mmu::perm_rw);
+    //void *adr = mmu::map_anon((void*)0x80000000, 0x1000, (mmu::mmap_small | mmu::mmap_uninitialized), mmu::perm_rw);
+    void *adr = mmu::map_anon((void*)0x80000000, 0x1000, mmu::mmap_small, mmu::perm_rw);
+    debug_early_u64("mapped address: ", (u64)adr);
+    unsigned long *bad_pointer =  (unsigned long *)0x80000000;
+    tmp = *bad_pointer;
+    tmp++;
 
+
+#endif /* AARCH64_PORT_STUB */
+   
     smp_initial_find_current_cpu()->init_on_cpu();
     void main_cont(int ac, char** av);
     sched::init([=] { main_cont(ac, av); });

@@ -1,6 +1,58 @@
+#include "arch-cpu.hh"
+#include <osv/debug.hh>
+#include <osv/sched.hh>
 #include <osv/mmu.hh>
 #include <osv/debug.h>
 #include <osv/prio.hh>
+
+
+void dump_frame(exception_frame *ef) {
+
+    debug_early_u64("x0   ", (u64)ef->regs[0]);
+    debug_early_u64("x1   ", (u64)ef->regs[1]);
+    debug_early_u64("x2   ", (u64)ef->regs[2]);
+    debug_early_u64("x30  ", (u64)ef->regs[29]);
+    debug_early_u64("x31  ", (u64)ef->regs[30]);
+    debug_early_u64("sp   ", (u64)ef->sp);
+    debug_early_u64("pc   ", (u64)ef->pc);
+    debug_early_u64("pstate  ", (u64)ef->pstate);
+}
+
+void page_fault(exception_frame *ef, u64 addr)
+{
+    static int i = 0;
+    debug_early("entering page_fault handler\n");
+    //dump_frame(ef);
+    debug_early_u64("faulting address ", (u64)addr);
+
+    //sched::exception_guard g;
+    //auto addr = processor::read_cr2();
+    //if (fixup_fault(ef)) {
+    //    return;
+    //} 
+    auto pc = reinterpret_cast<void*>(ef->pc);
+    if (!pc) {
+        abort("trying to execute null pointer");
+    }
+    // The following code may sleep. So let's verify the fault did not happen
+    // when preemption was disabled, or interrupts were disabled.
+    assert(sched::preemptable());
+    assert(ef->pstate & processor::daif_i);
+
+    // And since we may sleep, make sure interrupts are enabled.
+    //DROP_LOCK(irq_lock) { // irq_lock is acquired by HW
+        //sched::inplace_arch_fpu fpu;   //check this
+        //fpu.save();
+         mmu::vm_fault(addr, ef);
+        //fpu.restore();
+    //}
+    i++;
+    debug_early("exiting page_fault handler\n");
+    if(i == 2)
+        asm("wfi");
+
+
+} 
 
 namespace mmu {
 
@@ -28,11 +80,13 @@ pt_element *get_root_pt(uintptr_t virt)
     return &page_table_root[virt >> 63];
 }
 
-pt_element make_empty_pte() { return pt_element(); }
+pt_element make_empty_pte() {  return pt_element(); }
 
 pt_element make_pte(phys addr, bool large,
                     unsigned perm = perm_read | perm_write | perm_exec)
 {
+    if(anon_flag)
+        debug_early_u64("make pte :", (u64)addr); 
     pt_element pte;
     pte.set_valid(perm != 0);
     pte.set_writable(perm & perm_write);
@@ -40,11 +94,9 @@ pt_element make_pte(phys addr, bool large,
     pte.set_dirty(true);
     pte.set_large(large);
     pte.set_addr(addr, large);
-
     arch_pt_element::set_user(&pte, false);
     arch_pt_element::set_accessed(&pte, true);
     arch_pt_element::set_share(&pte, true);
-
     if (addr >= mmu::device_range_start && addr < mmu::device_range_stop) {
         /* we need to mark device memory as such, because the
            semantics of the load/store instructions change */
@@ -75,6 +127,8 @@ bool is_page_fault_insn(unsigned int esr) {
 bool is_page_fault_write(unsigned int esr) {
     unsigned int ec = esr >> 26;
     return (ec == 0x24 || ec == 0x25) && (esr & 0x40);
+    //return (ec == 0x24 || ec == 0x25);
+
 }
 
 bool is_page_fault_write_exclusive(unsigned int esr) {
