@@ -25,9 +25,9 @@ void page_fault(exception_frame *ef)
     debug_early_u64("faulting address ", (u64)addr);
 
     //sched::exception_guard g;
-    /*if (fixup_fault(ef)) {
+    if (fixup_fault(ef)) {
         return;
-    }*/
+    }
     auto pc = reinterpret_cast<void*>(ef->elr);
     if (!pc) {
         abort("trying to execute null pointer");

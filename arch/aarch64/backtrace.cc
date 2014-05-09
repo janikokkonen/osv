@@ -6,6 +6,7 @@
  */
 
 #include "safe-ptr.hh"
+#include <api/stddef.h>
 #include <osv/debug.h>
 
 struct frame {
@@ -19,7 +20,6 @@ int backtrace_safe(void** pc, int nr)
     frame* next;
 
     asm("mov %0, x29" : "=r"(fp));
-
     int i = 0;
     while (i < nr
            && safe_load(&fp->next, next)
@@ -27,6 +27,8 @@ int backtrace_safe(void** pc, int nr)
            && pc[i]) {
         fp = next;
         ++i;
+        if (&fp->next == NULL)
+            break;
     }
 
     return i;

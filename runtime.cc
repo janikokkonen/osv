@@ -87,20 +87,16 @@ static void print_backtrace(void)
     int len;
 
     debug_ll("\n[backtrace]\n");
-#ifdef AARCH64_PORT_STUB
-    debug_ll("NIY\n");
-    return;
-#endif
 
-    len = backtrace_safe(addrs, 128);
-
+    len = backtrace_safe(addrs,128);
     /* Skip abort(const char *) and abort(void)  */
     for (int i = 2; i < len; i++) {
-        auto addr = addrs[i] - 1;
-        auto ei = elf::get_program()->lookup_addr(addr);
-        const char *sname = ei.sym;
+        auto addr = addrs[i] - 4;
+        debug_early_u64("backtrace addr:", (u64)(addr));
+     /*   auto ei = elf::get_program()->lookup_addr(addr);
+const char *sname = ei.sym;
         char demangled[1024];
-
+        debug_early_u64("backtrace :\n", (u64)i);
         if (!ei.sym)
             sname = "???";
         else if (demangle(ei.sym, demangled, sizeof(demangled)))
@@ -109,7 +105,7 @@ static void print_backtrace(void)
         debug_ll("%p <%s+%d>\n",
             addr, sname,
             reinterpret_cast<uintptr_t>(addr)
-            - reinterpret_cast<uintptr_t>(ei.addr));
+            - reinterpret_cast<uintptr_t>(ei.addr)); */
     }
 }
 
