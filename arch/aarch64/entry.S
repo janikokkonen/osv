@@ -28,17 +28,6 @@
 .equ ESR_EL1_EC_SHIFT, 26
 .equ ESR_EL1_EC_DABT_EL1, 0x25
 
-enable_irq:
-        msr daifclr, #2
-        isb
-        ret
-
-disable_irq:
-        msr daifset, #2
-        isb
-        ret
-
-
 .macro sv_state
         sub sp, sp, #48        //make space for error_code, PSTATE, PC, SP
 	push_pair x28, x29
@@ -210,14 +199,8 @@ entry_serror:
         b       entry_invalid
 
 el1_da:
-         mrs x1, far_el1         //read the fault address register
-         //bl enable_irq           
          mov	x0, sp		 //save exception_frame to x0
 	 bl page_fault
-         //bl disable_irq          
-//         mov x1, sp
-//stop:
-//         b stop
          ld_state
 /*
 .macro exception_error_entry name, handler

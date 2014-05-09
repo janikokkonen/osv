@@ -5,7 +5,6 @@
 #include <osv/debug.h>
 #include <osv/prio.hh>
 
-
 void dump_frame(exception_frame *ef) {
 
     debug_early_u64("x0   ", (u64)ef->regs[0]);
@@ -14,30 +13,29 @@ void dump_frame(exception_frame *ef) {
     debug_early_u64("x30  ", (u64)ef->regs[29]);
     debug_early_u64("x31  ", (u64)ef->regs[30]);
     debug_early_u64("sp   ", (u64)ef->sp);
-    debug_early_u64("pc   ", (u64)ef->pc);
-    debug_early_u64("pstate  ", (u64)ef->pstate);
+    debug_early_u64("pc   ", (u64)ef->elr);
+    debug_early_u64("pstate  ", (u64)ef->spsr);
 }
 
-void page_fault(exception_frame *ef, u64 addr)
+void page_fault(exception_frame *ef)
 {
-    static int i = 0;
     debug_early("entering page_fault handler\n");
-    //dump_frame(ef);
+    u64 addr;
+    asm("mrs %[addr], far_el1" : [addr]"=r"(addr)::);
     debug_early_u64("faulting address ", (u64)addr);
 
     //sched::exception_guard g;
-    //auto addr = processor::read_cr2();
-    //if (fixup_fault(ef)) {
-    //    return;
-    //} 
-    auto pc = reinterpret_cast<void*>(ef->pc);
+    /*if (fixup_fault(ef)) {
+        return;
+    }*/
+    auto pc = reinterpret_cast<void*>(ef->elr);
     if (!pc) {
         abort("trying to execute null pointer");
     }
     // The following code may sleep. So let's verify the fault did not happen
     // when preemption was disabled, or interrupts were disabled.
     assert(sched::preemptable());
-    assert(ef->pstate & processor::daif_i);
+    assert(ef->spsr & processor::daif_i);
 
     // And since we may sleep, make sure interrupts are enabled.
     //DROP_LOCK(irq_lock) { // irq_lock is acquired by HW
@@ -46,13 +44,8 @@ void page_fault(exception_frame *ef, u64 addr)
          mmu::vm_fault(addr, ef);
         //fpu.restore();
     //}
-    i++;
     debug_early("exiting page_fault handler\n");
-    if(i == 2)
-        asm("wfi");
-
-
-} 
+}
 
 namespace mmu {
 
@@ -85,8 +78,6 @@ pt_element make_empty_pte() {  return pt_element(); }
 pt_element make_pte(phys addr, bool large,
                     unsigned perm = perm_read | perm_write | perm_exec)
 {
-    if(anon_flag)
-        debug_early_u64("make pte :", (u64)addr); 
     pt_element pte;
     pte.set_valid(perm != 0);
     pte.set_writable(perm & perm_write);
