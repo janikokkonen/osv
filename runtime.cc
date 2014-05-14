@@ -87,16 +87,13 @@ static void print_backtrace(void)
     int len;
 
     debug_ll("\n[backtrace]\n");
-#ifdef AARCH64_PORT_STUB
-    debug_ll("NIY\n");
-    return;
-#endif
 
     len = backtrace_safe(addrs, 128);
 
     /* Skip abort(const char *) and abort(void)  */
     for (int i = 2; i < len; i++) {
-        auto addr = addrs[i] - 1;
+        auto addr = addrs[i] - INSTR_SIZE_MIN;
+
         auto ei = elf::get_program()->lookup_addr(addr);
         const char *sname = ei.sym;
         char demangled[1024];
