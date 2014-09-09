@@ -111,7 +111,7 @@ void __attribute__((constructor)) signals_register_thread_notifier()
         }
     );
 }
-
+/*
 void generate_signal(siginfo_t &siginfo, exception_frame* ef)
 {
     if (pthread_self() && thread_signals()->mask[siginfo.si_signo]) {
@@ -137,7 +137,42 @@ void handle_mmap_fault(ulong addr, int sig, exception_frame* ef)
     si.si_signo = sig;
     si.si_addr = reinterpret_cast<void*>(addr);
     generate_signal(si, ef);
+} */
+
+
+/*JKo remove */
+
+struct sigaction act_usr2; 
+
+void sig_usr2_handler(int) {
+    debug_early("JKo: Entered SIGUSR2 handler\n");
 }
+
+void sig_usr2_sigaction(int sig, siginfo_t *siginfo, void *context) {
+    debug_early("JKo: Entered SIGUSR2 sigaction handler\n");
+}
+
+
+// JKo: stub implementations 
+void generate_signal(siginfo_t &siginfo, exception_frame* ef)
+{
+    memset(&act_usr2, 0, sizeof(act_usr2));
+    act_usr2.sa_flags = SA_SIGINFO;
+    act_usr2.sa_sigaction = sig_usr2_sigaction;
+    //act_usr2.sa_handler = sig_usr2_handler;
+    sigaction(SIGUSR2, &act_usr2, NULL);
+    arch::build_signal_frame(ef, siginfo, signal_actions[siginfo.si_signo]);
+}
+
+void handle_mmap_fault(ulong addr, int sig, exception_frame* ef)
+{
+    siginfo_t si;
+    si.si_signo = 12;   //SIGUSR2
+    si.si_addr = reinterpret_cast<void*>(addr);
+    generate_signal(si, ef);
+} 
+
+
 
 }
 

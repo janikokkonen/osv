@@ -51,6 +51,7 @@
 #include "libc/network/__dns.hh"
 
 using namespace osv;
+using namespace mmu;
 
 asm(".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1 \n"
     ".byte 1 \n"
@@ -115,6 +116,7 @@ void premain()
 
 int main(int ac, char **av)
 {
+
     smp_initial_find_current_cpu()->init_on_cpu();
     void main_cont(int ac, char** av);
     sched::init([=] { main_cont(ac, av); });
@@ -317,7 +319,6 @@ void run_main(const std::vector<std::string> &vec)
         debug("Enabling leak detector.\n");
         memory::tracker_enabled = true;
     }
-
     __libc_stack_end = __builtin_frame_address(0);
     auto oldname = sched::thread::current()->name();
     sched::thread::current()->set_name(command);
@@ -341,6 +342,7 @@ void run_main(const std::vector<std::string> &vec)
 
 void *_run_main(void *data)
 {
+
     auto vecp = (std::vector<std::string> *)data;
     run_main(*vecp);
     delete vecp;
@@ -518,13 +520,23 @@ void main_cont(int ac, char** av)
 
     arch::irq_enable();
 
+     printf("JKo: Generating page fault \n");
+    unsigned int mmap_flags = 0;
+    //mmap_flags = mmap_small | mmap_populate;
+    mmap_flags = mmap_small;
+    //access address that has not allocated in vma
+    unsigned int *bad_ptr = (unsigned int *)0x80002000;
+    mmu::map_anon((void *)0x80000000, 0x1000, mmap_flags, perm_rw);
+    //generate page fault
+    *bad_ptr = 100;
+
+
 #ifndef AARCH64_PORT_STUB
     if (opt_enable_sampler) {
         prof::config config{std::chrono::nanoseconds(1000000000 / sampler_frequency)};
         prof::start_sampler(config);
     }
 #endif /* !AARCH64_PORT_STUB */
-
     pthread_t pthread;
     // run the payload in a pthread, so pthread_self() etc. work
     pthread_create(&pthread, nullptr, do_main_thread, (void *) &cmds);

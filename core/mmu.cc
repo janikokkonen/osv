@@ -1182,6 +1182,7 @@ TRACEPOINT(trace_mmu_vm_fault, "addr=%p, error_code=%x", uintptr_t, unsigned int
 TRACEPOINT(trace_mmu_vm_fault_sigsegv, "addr=%p, error_code=%x, %s", uintptr_t, unsigned int, const char*);
 TRACEPOINT(trace_mmu_vm_fault_ret, "addr=%p, error_code=%x", uintptr_t, unsigned int);
 
+/*
 static void vm_sigsegv(uintptr_t addr, exception_frame* ef)
 {
     void *pc = ef->get_pc();
@@ -1190,6 +1191,11 @@ static void vm_sigsegv(uintptr_t addr, exception_frame* ef)
         dump_registers(ef);
         abort();
     }
+    osv::handle_mmap_fault(addr, SIGSEGV, ef);
+}*/
+
+static void vm_sigsegv(uintptr_t addr, exception_frame* ef)
+{
     osv::handle_mmap_fault(addr, SIGSEGV, ef);
 }
 
