@@ -167,6 +167,10 @@ init_stack_bottom = .
 . = . + 4096*4
 init_stack_top = .
 
+. = . + 4096*2
+.global signal_stack_top
+signal_stack_top = .
+
 /* hmm should we provide an interrupt stack?
 . = . + 4096*10
 .global interrupt_stack_top

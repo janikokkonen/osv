@@ -103,6 +103,42 @@ exception_vectors:
         ldr     x30, [sp], #48
 .endm /* pop_state_to_exception_frame */
 
+.macro push_registers
+        push_pair x28, x29
+        push_pair x26, x27
+        push_pair x24, x25
+        push_pair x22, x23
+        push_pair x20, x21
+        push_pair x18, x19
+        push_pair x16, x17
+        push_pair x14, x15
+        push_pair x12, x13
+        push_pair x10, x11
+        push_pair x8, x9
+        push_pair x6, x7
+        push_pair x4, x5
+        push_pair x2, x3
+        push_pair x0, x1
+.endm /* push registers */
+
+.macro pop_registers
+        pop_pair x0, x1
+        pop_pair x2, x3
+        pop_pair x4, x5
+        pop_pair x6, x7
+        pop_pair x8, x9
+        pop_pair x10, x11
+        pop_pair x12, x13
+        pop_pair x14, x15
+        pop_pair x16, x17
+        pop_pair x18, x19
+        pop_pair x20, x21
+        pop_pair x22, x23
+        pop_pair x24, x25
+        pop_pair x26, x27
+        pop_pair x28, x29
+.endm /* pop_registers */
+
 .equ ESR_EC_BEG,26          // Exception Class field begin in ESR
 .equ ESR_EC_END,31          // Exception Class field end in ESR
 .equ ESR_EC_DATA_ABORT,0x25 // Exception Class Data Abort value
@@ -172,15 +208,13 @@ entry_serror:
 .global call_signal_handler_thunk
 call_signal_handler_thunk:
         .type call_signal_handler_thunk, @function
-        # stack contains a signal_frame
-        /*
-        .cfi_offset reg, offset
-        ...
-        mov x0, sp
-        call call_signal_handler
-        # FIXME: fpu
-
-        pop_pair...
-        add sp, sp, 16 # error_code
-        */
+        push_registers  // push registers to sp_el1
+        mrs x0, sp_el0
+        mov x1, sp
+        msr sp_el0, x1  // save sp_el1 to sp_el0
+        mov sp, x0      // switch stack to sp_el0
+        b call_signal_handler
+        mrs x0, sp_el0
+        mov sp, x0      //switch stack to sp_el1
+        pop_registers
         ret
