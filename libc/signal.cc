@@ -16,7 +16,7 @@
 #include <osv/condvar.h>
 #include <osv/power.hh>
 #include <osv/clock.hh>
-#include <api/setjmp.h>
+#include <setjmp.h>
 #include <osv/stubbing.hh>
 
 using namespace osv::clock::literals;
