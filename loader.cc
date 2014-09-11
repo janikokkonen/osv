@@ -49,6 +49,7 @@
 #include "drivers/null.hh"
 
 #include "libc/network/__dns.hh"
+#include "setjmp.h"
 
 using namespace osv;
 
@@ -354,10 +355,30 @@ static std::string read_file(std::string fn)
           std::istreambuf_iterator<char>());
 }
 
+jmp_buf jmpbuf;
+
+void jmp_buf_func(void) {
+    debug_early("JKo: Entered jmp_buf\n");
+    longjmp(jmpbuf, 9);
+}
+    
+
 void* do_main_thread(void *_commands)
 {
     auto commands =
          static_cast<std::vector<std::vector<std::string> > *>(_commands);
+    
+    int val; 
+    val = setjmp(jmpbuf); 
+    if( val != 0 ) 
+    {
+      debug_early_u64("Returned from a longjmp() with value: ", (u64)val);
+      goto jump;
+    }
+           
+    jmp_buf_func();
+    
+jump:
 
     if (!arch_setup_console(opt_console)) {
         abort("Unknown console:%s\n", opt_console.c_str());
